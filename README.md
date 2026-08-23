@@ -58,8 +58,14 @@ A project on the auto-created default Cloud project shows it; one associated wit
 4. Configure the OAuth consent screen if it asks.
 5. Redeploy: Deploy → Manage deployments → pencil → **New version**.
 
-That is a five-minute job and it is the real fix. This wrapper is worth having anyway,
-for the domain, the icon and the standalone launch — just not for the banner.
+**On cost:** creating a project is free and nothing here calls a billable service — but
+Google leads with a free-trial signup that asks for a card, and it is not certain the
+association works without billing enabled on the project. Try it without starting the
+trial and see whether the banner clears before deciding whether that is worth a card
+on file. It is one grey strip; skipping this entirely is a reasonable answer.
+
+This wrapper is worth having either way, for the domain, the icon and the standalone
+launch — just not for the banner.
 
 ## The one thing to watch
 
