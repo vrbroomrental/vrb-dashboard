@@ -12,9 +12,29 @@ its own domain with its own home-screen icon.
 - **The launch.** Opened from the home screen it runs standalone, in the house
   colours, with no browser chrome and no white flash while Google wakes up.
 
+## The deployment has to allow anyone
+
+**This is a prerequisite, not a detail.** Deploy → Manage deployments → pencil →
+**Who has access: Anyone**.
+
+On *Anyone with a Google account*, Google intercepts the request before the app is ever
+reached and 302s to its sign-in page — and that page sets `X-Frame-Options: DENY`, so it
+cannot render inside a frame either. The frame ends up showing Google's own **401**. Not
+a wrapper bug: nothing can frame a page that demands an interactive Google login.
+
+**"Anyone" does not mean anyone can see the data.** It means anyone can load the *page*.
+Every server function calls `checkPin_()` before it reads or writes anything, so the URL
+on its own opens a lock screen and nothing else. That is what the six-digit code is for,
+and it is why `doGet()` sets `XFrameOptionsMode.ALLOWALL` — the app was built to be
+gated on the data and framed on the page.
+
+The trade: anonymous access is also what triggers the grey Apps Script banner. You get
+the domain and the icon, and you keep the banner.
+
 ## Setting it up
 
-1. Apps Script → **Deploy → Manage deployments** → copy the `/exec` URL.
+1. Apps Script → **Deploy → Manage deployments** → set access to **Anyone**, copy the
+   `/exec` URL.
 2. Open `index.html` and put it in `APP_URL` — it is the only line to edit.
 3. Push to a GitHub repo and turn on Pages.
 4. On the phone: open the domain in Safari → Share → **Add to Home Screen**.
