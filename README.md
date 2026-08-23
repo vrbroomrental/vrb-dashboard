@@ -9,9 +9,8 @@ its own domain with its own home-screen icon.
   `script.google.com/macros/s/AKfycb…/exec` URL nobody can type or remember.
 - **The icon.** Added to the home screen from here, so this page owns the icon,
   the name under it and the status-bar colour.
-- **The banner.** Google prints "This application was created by a Google Apps
-  Script user" above a web app opened directly. Framing it is the usual way
-  round that — see *Does it remove the banner?* below.
+- **The launch.** Opened from the home screen it runs standalone, in the house
+  colours, with no browser chrome and no white flash while Google wakes up.
 
 ## Setting it up
 
@@ -23,8 +22,15 @@ its own domain with its own home-screen icon.
 ### GitHub Pages
 
 Push this folder to a repo, then Settings → Pages → deploy from the branch.
-`CNAME` already carries the domain; point a `CNAME` DNS record at
-`<user>.github.io`.
+`CNAME` already carries the domain.
+
+Behind Cloudflare, two settings matter:
+
+- **DNS**: `CNAME  dashboard → <user>.github.io`, proxy **off** (grey cloud) until
+  GitHub has issued its certificate, then on if you want it.
+- **SSL/TLS mode: Full**. On *Flexible*, Cloudflare talks HTTP to GitHub, GitHub
+  redirects to HTTPS, and the two loop until the browser gives up. This is the
+  single most common way this setup fails.
 
 ### Vercel
 
@@ -33,17 +39,27 @@ headers. Add the domain in the project's Domains tab and follow the DNS it asks
 for. Nothing here needs a build step or a serverless function — the credentials
 stay in Apps Script, which is the point.
 
-## Does it remove the banner?
+## It does NOT remove the banner
 
-Usually, and it is the only approach that does not involve rewriting the app.
-Whether it works depends on how Google is serving web apps at the time, and that
-has changed before. **Test it in ten seconds:** publish, open the domain, and
-look at the top of the screen. If the banner is still there, nothing is lost —
-the domain and the icon are worth having on their own.
+Framing it was the plan; it does not work, and it cannot.
 
-`doGet()` in `Code.gs` already sets
-`setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)`, without which
-the frame would refuse to load at all.
+The page Google serves at `/exec` **is** the banner plus a nested iframe holding your
+HTML. Your code runs two frames down and has no access to the one above it. Putting
+Google's page inside a third frame brings the banner with it — there is nothing to strip.
+
+**The banner comes from the Apps Script project's Cloud project, not from the page.**
+A project on the auto-created default Cloud project shows it; one associated with a
+**standard** Cloud project does not:
+
+1. Google Cloud Console → create a project (any name).
+2. Copy its **project number** from the dashboard.
+3. Apps Script → ⚙ Project Settings → Google Cloud Platform (GCP) Project →
+   **Change project** → paste the number.
+4. Configure the OAuth consent screen if it asks.
+5. Redeploy: Deploy → Manage deployments → pencil → **New version**.
+
+That is a five-minute job and it is the real fix. This wrapper is worth having anyway,
+for the domain, the icon and the standalone launch — just not for the banner.
 
 ## The one thing to watch
 
