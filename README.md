@@ -16,13 +16,21 @@ its own domain with its own home-screen icon.
 
 1. Apps Script → **Deploy → Manage deployments** → copy the `/exec` URL.
 2. Open `index.html` and put it in `APP_URL` — it is the only line to edit.
-3. Publish (either route below).
+3. Push to a GitHub repo and turn on Pages.
 4. On the phone: open the domain in Safari → Share → **Add to Home Screen**.
 
-### GitHub Pages
+## Publishing
 
-Push this folder to a repo, then Settings → Pages → deploy from the branch.
-`CNAME` already carries the domain.
+Push this folder to its **own** repo — a repo can carry one custom domain, and the main
+site's already has `vrbroomrental.com`. Then Settings → Pages → deploy from the branch.
+`CNAME` already carries the domain. There is no build step: it is one HTML file, an
+icon and a manifest.
+
+**On a free GitHub account, Pages needs a public repo.** Nothing here is sensitive —
+the only thing in it is the `/exec` URL, and the app's gate is on the *data*: every
+server entry point checks the code before it reads or writes anything, so the URL on
+its own opens a lock screen and nothing else. `robots.txt` and a `noindex` tag keep it
+out of search results.
 
 Behind Cloudflare, two settings matter:
 
@@ -31,13 +39,6 @@ Behind Cloudflare, two settings matter:
 - **SSL/TLS mode: Full**. On *Flexible*, Cloudflare talks HTTP to GitHub, GitHub
   redirects to HTTPS, and the two loop until the browser gives up. This is the
   single most common way this setup fails.
-
-### Vercel
-
-Import the repo, or `vercel deploy` from this folder. `vercel.json` sets the
-headers. Add the domain in the project's Domains tab and follow the DNS it asks
-for. Nothing here needs a build step or a serverless function — the credentials
-stay in Apps Script, which is the point.
 
 ## It does NOT remove the banner
 
