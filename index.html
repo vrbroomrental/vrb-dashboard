@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+
+<!-- Full-bleed on a phone, and let the page paint under the notch and the home
+     indicator, because the app inside already accounts for the safe-area insets. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+
+<!-- Added to the home screen from HERE, so this page owns the icon, the name
+     under it, and the status-bar colour — not script.google.com. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VRB Billing">
+<!-- iOS composites a home-screen icon onto black, so this one is opaque cream
+     rather than the transparent mark. -->
+<link rel="apple-touch-icon" href="images/icon-ios.png">
+<link rel="icon" href="images/icon-ios.png">
+<link rel="manifest" href="manifest.webmanifest">
+
+<!-- The browser paints this before anything loads, so the very first frame is
+     already the right colour instead of white. -->
+<meta name="theme-color" content="#EFE8D9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14110C" media="(prefers-color-scheme: dark)">
+
+<!-- A private tool on a public domain. Keep it out of search results. -->
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+
+<title>VRB Billing</title>
+
+<style>
+  /* The house palette, so the shell and the app inside are the same colour and
+     there is no flash of the wrong one while Google wakes up. */
+  :root { --bg:#EFE8D9; --ink:#191510; --muted:#7E7462; --accent:#8A6B22; --line:#DFD4BE; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14110C; --ink:#F2EBDB; --muted:#9A9080; --accent:#D6B052; --line:#3A3225; }
+  }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  iframe {
+    display: block; border: 0; width: 100%;
+    /* dvh tracks the Safari toolbar as it collapses; vh is the fallback. */
+    height: 100vh; height: 100dvh;
+  }
+
+  /* Shown until the frame reports it has loaded. */
+  #boot {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 0 28px; text-align: center;
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    color: var(--muted); background: var(--bg);
+    transition: opacity .3s ease;
+  }
+  #boot.gone { opacity: 0; pointer-events: none; }
+  #boot img { width: 62px; height: auto; }
+  #boot .name {
+    font-family: 'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    font-size: 21px; font-weight: 600; color: var(--ink); letter-spacing: -.01em;
+  }
+  #boot .kicker {
+    font-size: 10px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--accent); margin-top: -12px;
+  }
+  .spin {
+    width: 20px; height: 20px;
+    border: 2px solid var(--line); border-top-color: var(--accent);
+    border-radius: 50%; animation: sp .7s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; opacity: .5 } }
+  #boot .late { display: none; max-width: 25em; font-size: 13.5px }
+  #boot.slow .late { display: block }
+  #boot a { color: var(--accent) }
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <img src="images/icon.png" alt="">
+  <div class="name">VRB Room Rental</div>
+  <div class="kicker">Billing Dashboard</div>
+  <div class="spin"></div>
+  <div class="late">
+    Still opening. Google can be slow to wake the first time each day. If it does not
+    clear, you may need to sign in to Google first —
+    <a id="direct" href="#" target="_blank" rel="noopener">open it directly</a>.
+  </div>
+</div>
+
+<!--
+  allow="camera" is what lets the ID-photo picker reach the camera from inside a
+  cross-origin frame. Without it the picker still opens, but "Take Photo" is
+  missing on iOS.
+-->
+<iframe
+  id="app"
+  title="VRB Billing"
+  allow="camera; microphone; clipboard-write"
+  referrerpolicy="no-referrer"
+  src=""></iframe>
+
+<script>
+  // ── The only line you edit ────────────────────────────────────────────────
+  // Apps Script → Deploy → Manage deployments → copy the /exec URL.
+  var APP_URL = 'PASTE_YOUR_EXEC_URL_HERE';
+
+  var frame = document.getElementById('app');
+  var boot  = document.getElementById('boot');
+  document.getElementById('direct').href = APP_URL;
+
+  if (APP_URL.indexOf('PASTE_') === 0) {
+    boot.innerHTML = '<div style="line-height:1.6"><b>Not set up yet.</b><br>' +
+      'Edit <code>index.html</code> and put the Apps Script <code>/exec</code> URL ' +
+      'into <code>APP_URL</code>.</div>';
+  } else {
+    frame.src = APP_URL;
+    var landed = false;
+    frame.addEventListener('load', function () {
+      landed = true;
+      boot.classList.add('gone');
+    });
+    // If Google is slow, or the account is not signed in, say so rather than
+    // spinning forever with no explanation.
+    setTimeout(function () { if (!landed) boot.classList.add('slow'); }, 6000);
+  }
+</script>
+</body>
+</html>

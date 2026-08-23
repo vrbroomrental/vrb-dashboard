@@ -1,0 +1,15 @@
+{
+  "name": "VRB Room Rental — Billing Dashboard",
+  "short_name": "VRB Billing",
+  "description": "Meter readings, invoices and payments for VRB Room Rental.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EFE8D9",
+  "theme_color": "#EFE8D9",
+  "icons": [
+    { "src": "images/icon-ios.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "images/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

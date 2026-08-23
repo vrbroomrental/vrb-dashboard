@@ -1,0 +1,3 @@
+# Private tool. Nothing here should ever appear in a search result.
+User-agent: *
+Disallow: /
