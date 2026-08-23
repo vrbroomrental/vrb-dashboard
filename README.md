@@ -28,8 +28,8 @@ on its own opens a lock screen and nothing else. That is what the six-digit code
 and it is why `doGet()` sets `XFrameOptionsMode.ALLOWALL` — the app was built to be
 gated on the data and framed on the page.
 
-The trade: anonymous access is also what triggers the grey Apps Script banner. You get
-the domain and the icon, and you keep the banner.
+Anonymous access is also what triggers the grey Apps Script banner on the direct URL.
+Framing turns out to hide it — see below.
 
 ## Setting it up
 
@@ -60,33 +60,36 @@ Behind Cloudflare, two settings matter:
   redirects to HTTPS, and the two loop until the browser gives up. This is the
   single most common way this setup fails.
 
-## It does NOT remove the banner
+## The banner
 
-Framing it was the plan; it does not work, and it cannot.
+Google stamps a grey strip across the top of the direct `/exec` page — *"This application
+was created by a Google Apps Script user"*, with a report-abuse link. It is the price of
+`Anyone` access.
 
-The page Google serves at `/exec` **is** the banner plus a nested iframe holding your
-HTML. Your code runs two frames down and has no access to the one above it. Putting
-Google's page inside a third frame brings the banner with it — there is nothing to strip.
+**Through this wrapper it does not appear.** Tested 23 August 2026, same browser and the
+same viewport, back to back: the direct URL showed the strip, the framed page showed cream
+from the first pixel. That chrome is drawn on the top-level page; framed, it is not drawn.
 
-**The banner comes from the Apps Script project's Cloud project, not from the page.**
-A project on the auto-created default Cloud project shows it; one associated with a
-**standard** Cloud project does not:
+Take that as observed behaviour, not a guarantee. Google has never documented it and could
+change it in any release. If the strip ever turns up inside the frame, nothing breaks — it
+is one grey line above a working app.
+
+### The documented fix, if it ever comes to that
+
+The banner is tied to the Apps Script project's Cloud project. A project on the
+auto-created default shows it; one associated with a **standard** Cloud project does not:
 
 1. Google Cloud Console → create a project (any name).
 2. Copy its **project number** from the dashboard.
-3. Apps Script → ⚙ Project Settings → Google Cloud Platform (GCP) Project →
+3. Apps Script → Project Settings → Google Cloud Platform (GCP) Project →
    **Change project** → paste the number.
 4. Configure the OAuth consent screen if it asks.
 5. Redeploy: Deploy → Manage deployments → pencil → **New version**.
 
 **On cost:** creating a project is free and nothing here calls a billable service — but
 Google leads with a free-trial signup that asks for a card, and it is not certain the
-association works without billing enabled on the project. Try it without starting the
-trial and see whether the banner clears before deciding whether that is worth a card
-on file. It is one grey strip; skipping this entirely is a reasonable answer.
-
-This wrapper is worth having either way, for the domain, the icon and the standalone
-launch — just not for the banner.
+association works without billing enabled. Deliberately skipped, because framing already
+solved it.
 
 ## The one thing to watch
 
