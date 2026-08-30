@@ -158,16 +158,56 @@
   // Apps Script → Deploy → Manage deployments → copy the /exec URL.
   var APP_URL = 'https://script.google.com/macros/s/AKfycbz3rOb27ddUiAknCC_-KOFIwYjCAG9QeJ1XCrq-2evgWHay6Dbd2XPTPzZCkV82cLvO/exec';
 
-  // TEMPORARY · confirms the viewport is now exactly the screen.
+  // TEMPORARY · one more reading, then this goes.
   setInterval(function () {
     var st = document.getElementById('stage').getBoundingClientRect();
+    var vv = window.visualViewport;
     document.getElementById('probe').textContent =
       'screen ' + screen.height + '  inner ' + window.innerHeight + '\n' +
-      'stage  ' + Math.round(st.top) + ' \u2192 ' + Math.round(st.bottom);
-  }, 500);
+      'vv ' + (vv ? Math.round(vv.height) + ' off' + Math.round(vv.offsetTop) +
+                    ' pg' + Math.round(vv.pageTop) : 'n/a') +
+      '  scroll ' + Math.round(window.pageYOffset) + '\n' +
+      'stage ' + Math.round(st.top) + ' \u2192 ' + Math.round(st.bottom);
+  }, 400);
 
   var frame = document.getElementById('app');
   var boot  = document.getElementById('boot');
+  var stage = document.getElementById('stage');
+
+  /**
+   * Put the viewport back after the keyboard.
+   *
+   * The strip is gone on opening and comes back the moment the PIN keyboard
+   * appears, then stays. iOS shifts and shrinks the viewport to bring the
+   * focused field into view, and in a home-screen app it does not always undo
+   * that when the keyboard goes — the page is left scrolled, or innerHeight
+   * stays short. Either way every fixed box, #stage included, ends up above the
+   * screen bottom and this page's background shows through under the app's tab
+   * bar. The field lives in a cross-origin frame so there is no focus event to
+   * hook, but visualViewport reports all of it to the top-level page.
+   *
+   * While the keyboard is up visualViewport is SMALLER than the layout
+   * viewport, so the guard below leaves it alone — no fighting the keyboard for
+   * space it is legitimately using. It only ever grows #stage back.
+   */
+  function settle() {
+    if (window.pageYOffset || document.documentElement.scrollTop) window.scrollTo(0, 0);
+    stage.style.height = '';
+    var vv = window.visualViewport;
+    if (!vv) return;
+    var full = Math.round(vv.height + vv.offsetTop);
+    if (full > window.innerHeight + 1) stage.style.height = full + 'px';
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () { setTimeout(settle, 60); });
+    window.visualViewport.addEventListener('scroll', function () { setTimeout(settle, 60); });
+  }
+  window.addEventListener('resize', settle);
+  window.addEventListener('orientationchange', function () { setTimeout(settle, 300); });
+  window.addEventListener('pageshow', settle);
+  settle();
+
   document.getElementById('direct').href = APP_URL;
 
   if (APP_URL.indexOf('PASTE_') === 0) {
