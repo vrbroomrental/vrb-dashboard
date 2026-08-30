@@ -44,24 +44,31 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* Sized by its offsets, never by a percentage or a viewport unit.
-     Two attempts came before this one. 100dvh stopped short of the home
-     indicator in a home-screen app, leaving a band of wrapper background under
-     the app's own tab bar; height:100% on a fixed element did the same, because
-     iOS can resolve that percentage against a layout viewport that excludes the
-     bottom safe area even with viewport-fit=cover. inset:0 is a different
-     mechanism altogether — the box is stretched to its containing block's
-     edges, so there is no height to resolve wrongly. #boot has used it all
-     along and has never shown the gap.
+  /* Two boxes, because one cannot do both jobs.
+     
+     #stage is a plain div, so inset:0 stretches it to the viewport's real
+     edges. That is the part that has to be right: 100dvh stopped short of the
+     home indicator in a home-screen app, leaving a band of this page's
+     background under the app's own tab bar, and height:100% on a fixed element
+     did the same, because iOS can resolve that percentage against a layout
+     viewport that excludes the bottom safe area even under viewport-fit=cover.
+     Offsets have no height to resolve wrongly. #boot has used inset:0 from the
+     start and has never shown the gap.
 
-     width/height must be auto, or they would over-constrain the offsets and we
-     would be back to a percentage. */
-  iframe {
+     The iframe then fills #stage with plain percentages. It cannot take the
+     inset:0 itself: an iframe is a REPLACED element, so width:auto/height:auto
+     do not stretch to the offsets — they fall back to its intrinsic 300x150,
+     and the app renders in a small box in the corner. Measured on an iPhone
+     runtime: "w 300 x h 150". Against #stage, 100% is a percentage of a box
+     that is already the right size, which is safe. */
+  #stage {
     position: fixed;
     inset: 0;
-    width: auto; height: auto;
-    display: block; border: 0;
     background: var(--bg);
+  }
+  #stage iframe {
+    display: block; border: 0;
+    width: 100%; height: 100%;
   }
 
   /* Shown until the frame reports it has loaded. */
@@ -114,12 +121,14 @@
   cross-origin frame. Without it the picker still opens, but "Take Photo" is
   missing on iOS.
 -->
-<iframe
-  id="app"
-  title="VRB Billing"
-  allow="camera; microphone; clipboard-write"
-  referrerpolicy="no-referrer"
-  src=""></iframe>
+<div id="stage">
+  <iframe
+    id="app"
+    title="VRB Billing"
+    allow="camera; microphone; clipboard-write"
+    referrerpolicy="no-referrer"
+    src=""></iframe>
+</div>
 
 <script>
   // ── The only line you edit ────────────────────────────────────────────────
@@ -140,38 +149,12 @@
     frame.addEventListener('load', function () {
       landed = true;
       boot.classList.add('gone');
-      fit();
     });
     // If Google is slow, or the account is not signed in, say so rather than
     // spinning forever with no explanation.
     setTimeout(function () { if (!landed) boot.classList.add('slow'); }, 6000);
   }
 
-  /**
-   * The belt to inset:0's braces.
-   *
-   * If iOS still hands back a layout viewport shorter than the screen — which
-   * is what put a strip of this page's background under the app's tab bar in
-   * the first place — close the gap explicitly. Guarded three ways so it can
-   * only ever do the one job:
-   *
-   *   · home-screen app only, since in Safari the browser chrome legitimately
-   *     takes that space and stretching into it would hide the toolbar;
-   *   · only a shortfall between 1 and 120px, so a landscape or split-view
-   *     mismatch of several hundred can never trigger it;
-   *   · the inline height is cleared first, so CSS gets to be right on its own
-   *     and this measures the real outcome rather than its own last guess.
-   */
-  function fit() {
-    frame.style.height = '';
-    if (window.navigator.standalone !== true) return;
-    var short = screen.height - frame.getBoundingClientRect().height;
-    if (short > 1 && short < 120) frame.style.height = screen.height + 'px';
-  }
-
-  window.addEventListener('resize', fit);
-  window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
-  fit();
 </script>
 </body>
 </html>
