@@ -44,16 +44,24 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* Pinned to the screen rather than sized in viewport units.
-     Added to the home screen the app runs under a translucent status bar with
-     viewport-fit=cover, and 100dvh there stopped short of the home indicator —
-     leaving a band of wrapper background below the app's own tab bar. A fixed
-     element resolves 100% against the initial containing block, which does
-     cover the full screen, safe areas included. */
+  /* Sized by its offsets, never by a percentage or a viewport unit.
+     Two attempts came before this one. 100dvh stopped short of the home
+     indicator in a home-screen app, leaving a band of wrapper background under
+     the app's own tab bar; height:100% on a fixed element did the same, because
+     iOS can resolve that percentage against a layout viewport that excludes the
+     bottom safe area even with viewport-fit=cover. inset:0 is a different
+     mechanism altogether — the box is stretched to its containing block's
+     edges, so there is no height to resolve wrongly. #boot has used it all
+     along and has never shown the gap.
+
+     width/height must be auto, or they would over-constrain the offsets and we
+     would be back to a percentage. */
   iframe {
-    position: fixed; top: 0; left: 0;
+    position: fixed;
+    inset: 0;
+    width: auto; height: auto;
     display: block; border: 0;
-    width: 100%; height: 100%;
+    background: var(--bg);
   }
 
   /* Shown until the frame reports it has loaded. */
@@ -132,11 +140,38 @@
     frame.addEventListener('load', function () {
       landed = true;
       boot.classList.add('gone');
+      fit();
     });
     // If Google is slow, or the account is not signed in, say so rather than
     // spinning forever with no explanation.
     setTimeout(function () { if (!landed) boot.classList.add('slow'); }, 6000);
   }
+
+  /**
+   * The belt to inset:0's braces.
+   *
+   * If iOS still hands back a layout viewport shorter than the screen — which
+   * is what put a strip of this page's background under the app's tab bar in
+   * the first place — close the gap explicitly. Guarded three ways so it can
+   * only ever do the one job:
+   *
+   *   · home-screen app only, since in Safari the browser chrome legitimately
+   *     takes that space and stretching into it would hide the toolbar;
+   *   · only a shortfall between 1 and 120px, so a landscape or split-view
+   *     mismatch of several hundred can never trigger it;
+   *   · the inline height is cleared first, so CSS gets to be right on its own
+   *     and this measures the real outcome rather than its own last guess.
+   */
+  function fit() {
+    frame.style.height = '';
+    if (window.navigator.standalone !== true) return;
+    var short = screen.height - frame.getBoundingClientRect().height;
+    if (short > 1 && short < 120) frame.style.height = screen.height + 'px';
+  }
+
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
+  fit();
 </script>
 </body>
 </html>
