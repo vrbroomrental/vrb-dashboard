@@ -173,17 +173,32 @@
    * space it is legitimately using. It only ever grows #stage back.
    */
   function settle() {
-    if (window.pageYOffset || document.documentElement.scrollTop) window.scrollTo(0, 0);
-    stage.style.height = '';
     var vv = window.visualViewport;
     if (!vv) return;
+
+    // Keyboard up: do nothing at all. iOS scrolls the focused field into view
+    // on every keypress, and undoing that mid-keystroke is what made the page
+    // jump on each digit of the PIN. The visual viewport being shorter than the
+    // layout viewport is how we know the keyboard is there.
+    if (vv.height < window.innerHeight - 1) return;
+
+    // Keyboard gone: put back whatever it disturbed, and only what it
+    // disturbed. Every write below is guarded, because an unconditional one
+    // is a reflow on each event and this fires on scroll.
+    if (window.pageYOffset || document.documentElement.scrollTop) window.scrollTo(0, 0);
+
     var full = Math.round(vv.height + vv.offsetTop);
-    if (full > window.innerHeight + 1) stage.style.height = full + 'px';
+    var want = full > window.innerHeight + 1 ? full + 'px' : '';
+    if (stage.style.height !== want) stage.style.height = want;
   }
 
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', function () { setTimeout(settle, 60); });
-    window.visualViewport.addEventListener('scroll', function () { setTimeout(settle, 60); });
+    // Coalesced: the keyboard animating in or out fires these many times over,
+    // and only the state it settles into matters.
+    var t = null;
+    var later = function () { clearTimeout(t); t = setTimeout(settle, 150); };
+    window.visualViewport.addEventListener('resize', later);
+    window.visualViewport.addEventListener('scroll', later);
   }
   window.addEventListener('resize', settle);
   window.addEventListener('orientationchange', function () { setTimeout(settle, 300); });
