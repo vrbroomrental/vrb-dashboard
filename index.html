@@ -66,6 +66,26 @@
     inset: 0;
     background: var(--bg);
   }
+
+  /* ── TEMPORARY · remove once the bottom strip is settled ──────────────────
+     Two rules, on two different boxes, to find out which one falls short.
+
+       magenta  the bottom edge of #stage  — my fixed box
+       cyan     the bottom edge of the page itself
+
+     If both sit on the screen edge with the app's tab bar directly above them,
+     nothing here is short and the gap is inside Google's frame. If the magenta
+     line is above the cyan one, #stage is short. If cyan is above the screen
+     edge, the whole document is. Reading it off a screenshot beats another
+     round of reasoning about which percentage resolves against what. */
+  #edge-stage { position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+                background: #FF00AA; z-index: 9998; }
+  #edge-page  { position: fixed;   left: 0; right: 0; bottom: 0; height: 3px;
+                background: #00C8FF; z-index: 9999; }
+  #probe { position: fixed; left: 8px; bottom: 10px; z-index: 10000;
+           font: 11px/1.35 ui-monospace, Menlo, monospace;
+           background: rgba(0,0,0,.78); color: #fff; padding: 5px 7px;
+           border-radius: 6px; white-space: pre; pointer-events: none; }
   #stage iframe {
     display: block; border: 0;
     width: 100%; height: 100%;
@@ -122,6 +142,7 @@
   missing on iOS.
 -->
 <div id="stage">
+  <div id="edge-stage"></div>
   <iframe
     id="app"
     title="VRB Billing"
@@ -129,11 +150,26 @@
     referrerpolicy="no-referrer"
     src=""></iframe>
 </div>
+<div id="edge-page"></div>
+<div id="probe">measuring…</div>
 
 <script>
   // ── The only line you edit ────────────────────────────────────────────────
   // Apps Script → Deploy → Manage deployments → copy the /exec URL.
   var APP_URL = 'https://script.google.com/macros/s/AKfycbz3rOb27ddUiAknCC_-KOFIwYjCAG9QeJ1XCrq-2evgWHay6Dbd2XPTPzZCkV82cLvO/exec';
+
+  // ── TEMPORARY · the numbers behind the two rules above ──────────────────
+  function probe() {
+    var st = document.getElementById('stage').getBoundingClientRect();
+    var fr = document.getElementById('app').getBoundingClientRect();
+    document.getElementById('probe').textContent =
+      'standalone ' + (window.navigator.standalone === true) + '\n' +
+      'screen.h   ' + screen.height + '\n' +
+      'inner.h    ' + window.innerHeight + '\n' +
+      'stage      ' + Math.round(st.top) + ' \u2192 ' + Math.round(st.bottom) + '  h' + Math.round(st.height) + '\n' +
+      'iframe     ' + Math.round(fr.top) + ' \u2192 ' + Math.round(fr.bottom) + '  h' + Math.round(fr.height);
+  }
+  setInterval(probe, 500);
 
   var frame = document.getElementById('app');
   var boot  = document.getElementById('boot');
