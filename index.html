@@ -116,6 +116,31 @@
   #boot .late { display: none; max-width: 25em; font-size: 13.5px }
   #boot.slow .late { display: block }
   #boot a { color: var(--accent) }
+
+  /* The reminders offer.
+     It has to live out here rather than inside the app, because asking for
+     notification permission needs a tap on THIS page: a tap inside a
+     cross-origin frame does not hand the frame's parent the user gesture the
+     browser demands. So the app says when it has been unlocked, and this bar
+     is the tap. */
+  #push {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
+    display: none; align-items: center; gap: 10px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    /* The page's own ground, not a colour of its own: this wrapper has a dark
+       palette and a bar painted light would put light text on a light bar. */
+    background: var(--bg); border-top: 1px solid var(--line);
+    font-size: 14px; color: var(--ink);
+    box-shadow: 0 -6px 24px rgba(0,0,0,.08);
+  }
+  #push.on { display: flex }
+  #push span { flex: 1; line-height: 1.35 }
+  #push button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    padding: 10px 14px; border-radius: 10px; border: 1px solid var(--accent);
+    background: var(--accent); color: #fff;
+  }
+  #push button.no { background: transparent; color: var(--muted); border-color: transparent }
 </style>
 </head>
 <body>
@@ -137,6 +162,12 @@
   cross-origin frame. Without it the picker still opens, but "Take Photo" is
   missing on iOS.
 -->
+<div id="push" role="status">
+  <span>Get the daily billing reminder on this phone?</span>
+  <button type="button" id="pushno" class="no">Not now</button>
+  <button type="button" id="pushyes">Turn on</button>
+</div>
+
 <div id="stage">
   <iframe
     id="app"
@@ -221,6 +252,86 @@
     // If Google is slow, or the account is not signed in, say so rather than
     // spinning forever with no explanation.
     setTimeout(function () { if (!landed) boot.classList.add('slow'); }, 6000);
+  }
+
+  // ── The daily reminder ────────────────────────────────────────────────────
+  //
+  // The rule, and the reason any of this is safe: a phone can only be sent to
+  // if it is on the dashboard's list, and it can only get onto that list from
+  // inside the app, after the six-digit code. A phone that has never been
+  // unlocked has no subscription, so there is nothing to send it — not a check
+  // that could be forgotten, but a row that does not exist.
+  //
+  // Which is why nothing below happens until the app says it has been
+  // unlocked. This page never sees the code, and does not ask.
+  var APP_ORIGIN = (function () {
+    try { return new URL(APP_URL).origin; } catch (e) { return ''; }
+  })();
+  var bar = document.getElementById('push');
+  var vapidKey = '';
+
+  navigator.serviceWorker && navigator.serviceWorker.register('/sw.js').catch(function () {
+    // No worker, no reminders. Everything else on the page still works, so
+    // this is not worth an error in front of somebody trying to bill a room.
+  });
+
+  function urlB64ToBytes(s) {
+    var b64 = (s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+    var bin = atob(b64), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function offer(show) { bar.classList.toggle('on', !!show); }
+
+  window.addEventListener('message', function (e) {
+    if (e.origin !== APP_ORIGIN || !e.data || e.data.vrb !== 'unlocked') return;
+    vapidKey = String(e.data.vapid || '');
+    if (!vapidKey || !('Notification' in window) || !navigator.serviceWorker) return;
+    if (Notification.permission === 'denied') return;
+    if (sessionStorage.getItem('vrb_push_no') === '1') return;
+
+    navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.getSubscription();
+    }).then(function (existing) {
+      // Already signed up on this phone: tell the app, so a subscription the
+      // browser quietly reissued does not go missing from the list.
+      if (existing) { send(existing); return; }
+      offer(true);
+    }).catch(function () { /* nothing to offer */ });
+  });
+
+  document.getElementById('pushno').addEventListener('click', function () {
+    // For this run only. Asked again next time it is opened, rather than never.
+    try { sessionStorage.setItem('vrb_push_no', '1'); } catch (e) {}
+    offer(false);
+  });
+
+  document.getElementById('pushyes').addEventListener('click', function () {
+    offer(false);
+    // This is the tap the browser insists on, on this page, in front of the
+    // person it concerns.
+    Notification.requestPermission().then(function (state) {
+      if (state !== 'granted') return;
+      return navigator.serviceWorker.ready.then(function (reg) {
+        return reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlB64ToBytes(vapidKey)
+        });
+      }).then(send);
+    }).catch(function () { /* declined or unavailable */ });
+  });
+
+  /** Hand the subscription back to the app, which is the only thing that can
+   *  save it — the sheet is behind the code, and this page is not. */
+  function send(sub) {
+    var j = sub.toJSON ? sub.toJSON() : sub;
+    frame.contentWindow.postMessage({
+      vrb: 'push-subscription',
+      endpoint: j.endpoint,
+      p256dh: j.keys && j.keys.p256dh,
+      auth: j.keys && j.keys.auth
+    }, APP_ORIGIN);
   }
 
 </script>
