@@ -123,24 +123,42 @@
      cross-origin frame does not hand the frame's parent the user gesture the
      browser demands. So the app says when it has been unlocked, and this bar
      is the tap. */
+  /* Asked in front of the app rather than under it. A bar along the bottom is
+     easy to walk past on a screen that has just filled with the day's work —
+     and this is a question that only gets asked once. */
   #push {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
-    display: none; align-items: center; gap: 10px;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-    /* The page's own ground, not a colour of its own: this wrapper has a dark
-       palette and a bar painted light would put light text on a light bar. */
-    background: var(--bg); border-top: 1px solid var(--line);
-    font-size: 14px; color: var(--ink);
-    box-shadow: 0 -6px 24px rgba(0,0,0,.08);
+    position: fixed; inset: 0; z-index: 4;
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+    background: rgba(0,0,0,.45);
+    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   }
   #push.on { display: flex }
-  #push span { flex: 1; line-height: 1.35 }
+  #push .card {
+    width: 100%; max-width: 22em;
+    padding: 24px 22px calc(22px + env(safe-area-inset-bottom));
+    border-radius: 18px;
+    /* The page's own ground: this wrapper has a dark palette, and a card
+       painted light would put light text on a light card. */
+    background: var(--bg); border: 1px solid var(--line);
+    box-shadow: 0 24px 60px rgba(0,0,0,.35);
+    text-align: center; color: var(--ink);
+  }
+  #push .bell { font-size: 30px; line-height: 1; margin-bottom: 10px }
+  #push h2 {
+    font-family: 'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    font-size: 19px; font-weight: 600; margin: 0 0 8px;
+  }
+  #push p { margin: 0 0 20px; font-size: 14px; line-height: 1.45; color: var(--muted) }
   #push button {
-    font: inherit; font-weight: 600; cursor: pointer;
-    padding: 10px 14px; border-radius: 10px; border: 1px solid var(--accent);
+    display: block; width: 100%; font: inherit; font-weight: 600; cursor: pointer;
+    padding: 13px 16px; border-radius: 12px; border: 1px solid var(--accent);
     background: var(--accent); color: #fff;
   }
-  #push button.no { background: transparent; color: var(--muted); border-color: transparent }
+  #push button.no {
+    background: transparent; color: var(--muted);
+    border-color: transparent; margin-top: 6px; font-weight: 500;
+  }
 </style>
 </head>
 <body>
@@ -162,10 +180,15 @@
   cross-origin frame. Without it the picker still opens, but "Take Photo" is
   missing on iOS.
 -->
-<div id="push" role="status">
-  <span>Get the daily billing reminder on this phone?</span>
-  <button type="button" id="pushno" class="no">Not now</button>
-  <button type="button" id="pushyes">Turn on</button>
+<div id="push" role="dialog" aria-modal="true" aria-labelledby="pushtitle">
+  <div class="card">
+    <div class="bell" aria-hidden="true">🔔</div>
+    <h2 id="pushtitle">Reminders on this phone</h2>
+    <p>What needs invoicing each morning, and what is still unpaid at midday
+       and in the evening. Counts only — no names, no amounts.</p>
+    <button type="button" id="pushyes">Turn on</button>
+    <button type="button" id="pushno" class="no">Not now</button>
+  </div>
 </div>
 
 <div id="stage">
@@ -297,6 +320,11 @@
     // and nothing is broadcast.
     appWin = e.source; appOrigin = e.origin;
     vapidKey = String(e.data.vapid || '');
+
+    // Where from, and on what. Apps Script is never told the address a request
+    // came from, so the dashboard cannot see it — the notifier can, because
+    // Cloudflare tells it on every request, and it hands back that one line.
+    tellApp(String(e.data.notifier || ''));
     if (!vapidKey || !('Notification' in window) || !navigator.serviceWorker) return;
     if (Notification.permission === 'denied') return;
     if (sessionStorage.getItem('vrb_push_no') === '1') return;
@@ -310,6 +338,46 @@
       offer(true);
     }).catch(function () { /* nothing to offer */ });
   });
+
+  /** A short, readable name for whatever this is being used on. */
+  function deviceName() {
+    var ua = navigator.userAgent || '';
+    var os = /iPad/.test(ua) ? 'iPad'
+           : /iPhone/.test(ua) ? 'iPhone'
+           : /Android/.test(ua) ? 'Android'
+           : /Mac OS X/.test(ua) ? 'Mac'
+           : /Windows/.test(ua) ? 'Windows'
+           : 'Unknown device';
+    var browser = /CriOS|Chrome/.test(ua) ? 'Chrome'
+                : /FxiOS|Firefox/.test(ua) ? 'Firefox'
+                : /Edg/.test(ua) ? 'Edge'
+                : /Safari/.test(ua) ? 'Safari' : '';
+    // Launched from the home screen rather than opened in a browser — worth
+    // knowing, because that is the way it is meant to be used.
+    var standalone = window.navigator.standalone === true ||
+                     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    return os + (standalone ? ' · home screen' : browser ? ' · ' + browser : '');
+  }
+
+  function tellApp(notifierUrl) {
+    function post(where) {
+      try {
+        appWin.postMessage({
+          vrb: 'client-info',
+          device: deviceName(),
+          user_agent: navigator.userAgent || '',
+          ip: where.ip || '', city: where.city || '',
+          region: where.region || '', country: where.country || ''
+        }, appOrigin);
+      } catch (e) { /* the app will record what it can */ }
+    }
+    if (!notifierUrl) { post({}); return; }
+    fetch(notifierUrl.replace(/\/+$/, '') + '/whoami', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(post)
+      // No address is not a reason to lose the device and the time.
+      .catch(function () { post({}); });
+  }
 
   document.getElementById('pushno').addEventListener('click', function () {
     // For this run only. Asked again next time it is opened, rather than never.
