@@ -1,6 +1,6 @@
 {
   "name": "VRB Room Rental — Billing Dashboard",
-  "short_name": "VRB Billing",
+  "short_name": "VRB Room Rental",
   "description": "Meter readings, invoices and payments for VRB Room Rental.",
   "start_url": "/",
   "scope": "/",

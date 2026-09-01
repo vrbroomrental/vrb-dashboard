@@ -1,5 +1,5 @@
 /**
- * VRB Billing — the service worker.
+ * VRB Room Rental — the service worker.
  *
  * It exists for one reason: a notification cannot be delivered to a page that
  * is closed, and only a service worker is awake when the app is not. It does
@@ -22,7 +22,7 @@ self.addEventListener('push', (event) => {
   // screen by whoever is holding the phone. If it ever arrives empty, say the
   // least useful true thing rather than nothing, because a push that shows no
   // notification costs the app its permission on iOS.
-  let data = { title: 'VRB Billing', body: 'Open the dashboard.', url: '/' };
+  let data = { title: 'VRB Room Rental', body: 'Open the dashboard.', url: '/' };
   try { if (event.data) data = Object.assign(data, event.data.json()); } catch (e) { /* keep the default */ }
 
   event.waitUntil(self.registration.showNotification(data.title, {
