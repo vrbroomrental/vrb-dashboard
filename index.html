@@ -264,11 +264,18 @@
   //
   // Which is why nothing below happens until the app says it has been
   // unlocked. This page never sees the code, and does not ask.
-  var APP_ORIGIN = (function () {
-    try { return new URL(APP_URL).origin; } catch (e) { return ''; }
-  })();
+  // Apps Script serves the app two frames down: script.google.com holds a
+  // sandbox iframe on googleusercontent.com, and the app's own code runs in
+  // that. So the message announcing an unlock arrives from the sandbox, not
+  // from the page this file framed — and the reply has to go back the way it
+  // came rather than to the frame we created.
+  function fromApp(origin) {
+    return origin === 'https://script.google.com' ||
+           /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/.test(origin);
+  }
   var bar = document.getElementById('push');
   var vapidKey = '';
+  var appWin = null, appOrigin = '';
 
   navigator.serviceWorker && navigator.serviceWorker.register('/sw.js').catch(function () {
     // No worker, no reminders. Everything else on the page still works, so
@@ -285,7 +292,10 @@
   function offer(show) { bar.classList.toggle('on', !!show); }
 
   window.addEventListener('message', function (e) {
-    if (e.origin !== APP_ORIGIN || !e.data || e.data.vrb !== 'unlocked') return;
+    if (!e.data || e.data.vrb !== 'unlocked' || !fromApp(e.origin)) return;
+    // Answer whoever spoke, at the address they spoke from. Nothing is guessed
+    // and nothing is broadcast.
+    appWin = e.source; appOrigin = e.origin;
     vapidKey = String(e.data.vapid || '');
     if (!vapidKey || !('Notification' in window) || !navigator.serviceWorker) return;
     if (Notification.permission === 'denied') return;
@@ -325,13 +335,14 @@
   /** Hand the subscription back to the app, which is the only thing that can
    *  save it — the sheet is behind the code, and this page is not. */
   function send(sub) {
+    if (!appWin) return;
     var j = sub.toJSON ? sub.toJSON() : sub;
-    frame.contentWindow.postMessage({
+    appWin.postMessage({
       vrb: 'push-subscription',
       endpoint: j.endpoint,
       p256dh: j.keys && j.keys.p256dh,
       auth: j.keys && j.keys.auth
-    }, APP_ORIGIN);
+    }, appOrigin);
   }
 
 </script>
