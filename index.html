@@ -339,24 +339,40 @@
     }).catch(function () { /* nothing to offer */ });
   });
 
-  /** A short, readable name for whatever this is being used on. */
+  /**
+   * A short, true name for whatever this is being used on.
+   *
+   * Not the model. Apple does not tell a web page whether it is an iPhone 13
+   * or a 16 — every one of them says only "iPhone" — and guessing from the
+   * screen size gets several of them wrong. The version it is running is both
+   * knowable and the more useful half anyway: two sign-ins from "iPhone" mean
+   * nothing, two from "iPhone · iOS 18.5" and "iPhone · iOS 26.1" mean two
+   * different phones.
+   */
   function deviceName() {
     var ua = navigator.userAgent || '';
-    var os = /iPad/.test(ua) ? 'iPad'
-           : /iPhone/.test(ua) ? 'iPhone'
-           : /Android/.test(ua) ? 'Android'
-           : /Mac OS X/.test(ua) ? 'Mac'
-           : /Windows/.test(ua) ? 'Windows'
-           : 'Unknown device';
-    var browser = /CriOS|Chrome/.test(ua) ? 'Chrome'
-                : /FxiOS|Firefox/.test(ua) ? 'Firefox'
-                : /Edg/.test(ua) ? 'Edge'
-                : /Safari/.test(ua) ? 'Safari' : '';
-    // Launched from the home screen rather than opened in a browser — worth
-    // knowing, because that is the way it is meant to be used.
-    var standalone = window.navigator.standalone === true ||
-                     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-    return os + (standalone ? ' · home screen' : browser ? ' · ' + browser : '');
+
+    function ios() {
+      var m = /OS (\d+)[_.](\d+)/.exec(ua);
+      return m ? ' · iOS ' + m[1] + '.' + m[2] : '';
+    }
+    if (/iPad/.test(ua)) return 'iPad' + ios();
+    if (/iPhone/.test(ua)) return 'iPhone' + ios();
+    if (/Android/.test(ua)) {
+      var a = /Android (\d+(?:\.\d+)?)/.exec(ua);
+      return 'Android' + (a ? ' ' + a[1] : '');
+    }
+
+    var browser = /Edg\//.test(ua) ? 'Edge'
+                : /CriOS|Chrome\//.test(ua) ? 'Chrome'
+                : /Firefox\//.test(ua) ? 'Firefox'
+                : /Safari\//.test(ua) ? 'Safari' : '';
+    if (/Mac OS X/.test(ua)) {
+      var v = /Mac OS X (\d+)[_.](\d+)/.exec(ua);
+      return 'Mac' + (v ? ' ' + v[1] + '.' + v[2] : '') + (browser ? ' · ' + browser : '');
+    }
+    if (/Windows NT/.test(ua)) return 'Windows' + (browser ? ' · ' + browser : '');
+    return browser || 'Unknown device';
   }
 
   function tellApp(notifierUrl) {
