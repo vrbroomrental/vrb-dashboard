@@ -285,7 +285,24 @@
       'Edit <code>index.html</code> and put the Apps Script <code>/exec</code> URL ' +
       'into <code>APP_URL</code>.</div>';
   } else {
-    frame.src = APP_URL;
+    // The appearance the viewer picked last time, handed over in the query
+    // string so the app is served already wearing it.
+    //
+    // It is remembered HERE rather than in there: the app sits in a cross-site
+    // frame, where iOS partitions storage and empties it between sessions, so
+    // a choice saved inside the app was gone by the next launch. This page is
+    // the one that was installed, and its storage is first-party and keeps.
+    var savedTheme = '';
+    try { savedTheme = localStorage.getItem('vrb_theme') || ''; } catch (e) {}
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      // Paint the wrapper to match too, or the split second before the frame
+      // lands is a flash of the other theme around the edges.
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      frame.src = APP_URL + (APP_URL.indexOf('?') < 0 ? '?' : '&') +
+                  'theme=' + encodeURIComponent(savedTheme);
+    } else {
+      frame.src = APP_URL;
+    }
     var landed = false;
     frame.addEventListener('load', function () {
       landed = true;
@@ -334,7 +351,24 @@
   function offer(show) { bar.classList.toggle('on', !!show); }
 
   window.addEventListener('message', function (e) {
-    if (!e.data || e.data.vrb !== 'unlocked' || !fromApp(e.origin)) return;
+    if (!e.data || !fromApp(e.origin)) return;
+
+    // A change of appearance. Remembered here because here is what survives.
+    if (e.data.vrb === 'theme') {
+      var m = String(e.data.theme || '');
+      try {
+        if (m === 'light' || m === 'dark') {
+          localStorage.setItem('vrb_theme', m);
+          document.documentElement.setAttribute('data-theme', m);
+        } else {
+          localStorage.removeItem('vrb_theme');       // back to following the device
+          document.documentElement.removeAttribute('data-theme');
+        }
+      } catch (err) { /* private mode: it just will not be remembered */ }
+      return;
+    }
+
+    if (e.data.vrb !== 'unlocked') return;
     // Answer whoever spoke, at the address they spoke from. Nothing is guessed
     // and nothing is broadcast.
     appWin = e.source; appOrigin = e.origin;
