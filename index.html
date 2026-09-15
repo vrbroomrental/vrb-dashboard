@@ -194,6 +194,12 @@
   allow="camera" is what lets the ID-photo picker reach the camera from inside a
   cross-origin frame. Without it the picker still opens, but "Take Photo" is
   missing on iOS.
+
+  web-share is the same kind of grant, for the same kind of reason. navigator
+  .share is gated by Permissions Policy, and a cross-origin frame is refused it
+  unless the framing page hands it over — so canShare() answered false and the
+  invoice fell back to a download link, which is why sharing one arrived as a
+  file card to be opened rather than as the picture itself.
 -->
 <div id="push" role="dialog" aria-modal="true" aria-labelledby="pushtitle">
   <div class="card">
@@ -208,7 +214,7 @@
   <iframe
     id="app"
     title="VRB Room Rental"
-    allow="camera; microphone; clipboard-write"
+    allow="camera; microphone; clipboard-write; web-share"
     referrerpolicy="no-referrer"
     src=""></iframe>
 </div>
